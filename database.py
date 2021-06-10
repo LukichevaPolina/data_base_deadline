@@ -12,7 +12,7 @@ class Database:
         self.engine = create_engine('postgresql+psycopg2://{}:{}@localhost/lab2'.format(auth['user'],
                                                                                         auth['password'], echo=True))
 
-    def delete(self):
+    def delete_db(self):
         return
 
     def select_from_db(self):
@@ -24,16 +24,16 @@ class Database:
     def add_data(self):
         return
 
-    def find(self):
+    def search(self):
         return
 
     def update_tuple(self):
         return
 
-    def delete_field(self):
+    def delete_by_field(self):
         return
 
-    def delete_entry(self):
+    def delete_data(self):
         return
 
 
