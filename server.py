@@ -95,7 +95,7 @@ def passwd(update: Update, context: CallbackContext):
         update.message.reply_text('Неверные данные!')
     else:
         update.message.reply_text(f'Готово!\n'
-                                  f'Для просмотра доступных действий введите /help')
+                                  f'Для просмотра доступных действий введите /choose_actions')
     return ConversationHandler.END
 
 
@@ -194,15 +194,17 @@ def print_table(update: Update, context: CallbackContext):
 @decorator_error
 @analise
 def clear_table(update: Update, context: CallbackContext):
+    tabl = bot_db.get_tables()
     if update.message.text == 'Выбрать таблицу':
-        keyboard_tables = [[KeyboardButton(text='Таблица1')],
-                           [KeyboardButton(text='Таблица2')]]
+        keyboard_tables = [[KeyboardButton(text=tabl[0])],
+                           [KeyboardButton(text=tabl[1])],
+                           [KeyboardButton(text=tabl[2])]]
         reply = ReplyKeyboardMarkup(keyboard_tables, one_time_keyboard=True)
         update.message.reply_text(
             f"Выберете талицу:", reply_markup=reply)
         return 'Select table'
     elif update.message.text == 'Очистить полностью':
-        bot_db.clear()
+        bot_db.clear(name_table='', full_del=True)
         update.message.reply_text('Таблицы успешно удалены!')
     else:
         update.message.reply_text('Некорректный ввод')
@@ -212,7 +214,7 @@ def clear_table(update: Update, context: CallbackContext):
 @decorator_error
 @analise
 def select_table(update: Update, context: CallbackContext):
-    bot_db.clear()
+    bot_db.clear(name_table=update.message.text, full_del=False)
     update.message.reply_text('Таблица успешно удалена!')
     return ConversationHandler.END
 
@@ -272,6 +274,7 @@ def main():
         fallbacks=[MessageHandler(Filters.text, error)]
     ))
 
+    # actions handler
     dispatcher.add_handler(ConversationHandler(
         entry_points=[CommandHandler('choose_actions', choose_action)],
 

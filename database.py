@@ -5,31 +5,37 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy_utils import database_exists, create_database
 
-Base = declarative_base()
 
 
 class Database:
     def __init__(self, login, password):
-        engine = create_engine('postgresql+psycopg2://{}:{}@localhost/lab2'.format(login, password, echo=True))
-        engine.connect()
-        Session = sessionmaker(bind=engine)
-        session = Session()
-        metadata = MetaData()
-        deadlines_table = Table('Deadlines', metadata,
+        self.Base = declarative_base()
+        self.engine = create_engine('postgresql+psycopg2://{}:{}@localhost/lab2'.format(login, password, echo=True))
+        self.engine.connect()
+        self.Session = sessionmaker(bind=self.engine)
+        self.session = self.Session()
+        self.metadata = MetaData()
+        self.deadlines_table = Table('Deadlines', self.metadata,
                                 Column('Discipline', String),
                                 Column('Deadline', Date),
                                 Column('Task ID', Integer, primary_key=True, autoincrement=True))
 
-        discipline_table = Table('Disciplines', metadata,
+        self.discipline_table = Table('Disciplines', self.metadata,
                                  Column('Discipline', String, primary_key=True),
                                  Column('Teacher', String))
 
-        task_table = Table('Tasks', metadata,
+        self.task_table = Table('Tasks', self.metadata,
                            Column('ID', Integer, ForeignKey('Deadlines.Task ID')),
                            Column('Task', String),
                            Column('Group', String))
 
-        metadata.create_all(engine)
+        self.tables = {'deadlines_table': self.deadlines_table,
+                  'discipline_table': self.discipline_table,
+                  'task_table': self.task_table}
+        self.metadata.create_all(self.engine)
+
+    def get_tables(self):
+        return ['deadline_table', 'discription_table', 'task_table']
 
     def create_db(self, login, password, name):
         engine = create_engine('postgresql://{}:{}@localhost/{}'.format(login, password, name, echo=True))
@@ -39,17 +45,18 @@ class Database:
         return 1
 
     def delete_db(self):
-        return
+        self.deadlines_table.drop()
 
     def select_from_db(self):
         return
 
-    def clear(self, full_del: bool):
+    def clear(self, name_table: str, full_del: bool):
         if full_del:
-            return
-        return
-
-
+            for tab in self.tables.values():
+                print(type(tab))
+                tab.drop(self.engine)
+        else:
+            self.tables[name_table].drop(self.engine)
 
     def add_data(self):
         return
