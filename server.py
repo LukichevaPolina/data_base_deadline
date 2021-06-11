@@ -87,8 +87,8 @@ def login(update: Update, context: CallbackContext):
 @decorator_error
 @analise
 def passwd(update: Update, context: CallbackContext):
+    global bot_db, password
     password = update.message.text
-    global bot_db
     try:
         bot_db = Database(log, password)
     except database.OperationalError:
@@ -103,7 +103,8 @@ def passwd(update: Update, context: CallbackContext):
 @decorator_error
 @analise
 def choose_action(update: Update, context: CallbackContext):
-    keyboard = [[KeyboardButton(text='Delete db')],
+    keyboard = [[KeyboardButton(text='Create db')],
+                [KeyboardButton(text='Delete db')],
                 [KeyboardButton(text='Print table')],
                 [KeyboardButton(text='Clear table')],
                 [KeyboardButton(text='Add data')],
@@ -121,7 +122,8 @@ def choose_action(update: Update, context: CallbackContext):
 @decorator_error
 @analise
 def choose_action_end(update: Update, context: CallbackContext):
-    text = {'Delete db': 'Удаление базы данных...',
+    text = {'Create db': 'Создание базы данных',
+            'Delete db': 'Удаление базы данных...',
             'Print table': 'Распечатываем...',
             'Clear table': 'Выберете таблицу, которую хотите удалить:',
             'Add data': 'Выберете таблицу, в которую хотите добавить данные:',
@@ -132,7 +134,9 @@ def choose_action_end(update: Update, context: CallbackContext):
 
     role = update.message.text
     update.message.reply_text(text[role])
-    if role == 'Delete db':
+    if role == 'Create db':
+        update.message.reply_text('Введите название базы данных:')
+    elif role == 'Delete db':
         delete_db(update, context)
         return ConversationHandler.END
     elif role == 'Print table':
@@ -158,6 +162,17 @@ def choose_action_end(update: Update, context: CallbackContext):
     elif role == 'Delete data':
         delete_data(update, context)
     return role
+
+
+@decorator_error
+@analise
+def create_db(update: Update, context: CallbackContext):
+    if bot_db.create_db(login=log, password=password, name=update.message.text) == 0:
+        update.message.reply_text('База данных создана!\n'
+                                  'Если хотите добавить в нее таблицы, введите /add_table')
+    else:
+        update.message.reply_text('Такая база данных уже существует!')
+    return ConversationHandler.END
 
 
 # ======== delete db ========
@@ -262,6 +277,7 @@ def main():
 
         states={
                 'choose_action_end': [MessageHandler(Filters.text, choose_action_end)],
+                'Create db': [MessageHandler(Filters.text,  create_db)],
                 'Print table': [MessageHandler(Filters.text, print_table)],
                 'Clear table': [MessageHandler(Filters.text, clear_table)],
                 'Select table': [MessageHandler(Filters.text, select_table)],
@@ -282,4 +298,3 @@ def main():
 if __name__ == '__main__':
     logger.info('Start Bot')
     main()
-
