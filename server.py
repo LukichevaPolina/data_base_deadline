@@ -1,5 +1,6 @@
 import logging
 
+import database
 from telegram.ext import (Updater,
                           Dispatcher,
                           Filters,
@@ -17,13 +18,15 @@ from telegram import (Bot,
 
 from config import TOKEN
 
-from database import bot_db
+from database import Database
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 
 logger = logging.getLogger(__name__)
 array = []
+
+global bot_db, log
 
 
 def analise(function):
@@ -64,6 +67,42 @@ def error(update: Update, context: CallbackContext):
 @decorator_error
 @analise
 def start(update: Update, context: CallbackContext):
+    update.message.reply_text(
+        f"Здраствуйте, {update.effective_user.first_name}! Этот чат-бот создан для отслеживания дедлайнов.\n"
+        f"Проийти авторизацию. Для начала работы необходимо авторизоваться.\n")
+    update.message.reply_text(f"Введите логин:")
+    return 'login'
+
+
+# ======== authorization ========
+@decorator_error
+@analise
+def login(update: Update, context: CallbackContext):
+    global log
+    log = update.message.text
+    update.message.reply_text('Введите пароль:')
+    return 'passwd'
+
+
+@decorator_error
+@analise
+def passwd(update: Update, context: CallbackContext):
+    password = update.message.text
+    global bot_db
+    try:
+        bot_db = Database(log, password)
+    except database.OperationalError:
+        update.message.reply_text('Неверные данные!')
+    else:
+        update.message.reply_text(f'Готово!\n'
+                                  f'Для просмотра доступных действий введите /help')
+    return ConversationHandler.END
+
+
+# ======== choose action ========
+@decorator_error
+@analise
+def choose_action(update: Update, context: CallbackContext):
     keyboard = [[KeyboardButton(text='Delete db')],
                 [KeyboardButton(text='Print table')],
                 [KeyboardButton(text='Clear table')],
@@ -75,34 +114,41 @@ def start(update: Update, context: CallbackContext):
 
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
     update.message.reply_text(
-        f"Здраствуйте, {update.effective_user.first_name}! Этот чат-бот создан для отслеживания дедлайнов.\n"
-        f"Доступные команды:\n", reply_markup=reply_markup)
-    return 'choose_action'
+        f"Выберете действие:", reply_markup=reply_markup)
+    return 'choose_action_end'
 
 
-# ======== choose action ========
 @decorator_error
 @analise
-def choose_action(update: Update, context: CallbackContext):
+def choose_action_end(update: Update, context: CallbackContext):
     text = {'Delete db': 'Удаление базы данных...',
             'Print table': 'Распечатываем...',
             'Clear table': 'Выберете таблицу, которую хотите удалить:',
-            'Add data': 'Введите сообщение в формате ...',
-            'Search by field': 'Введите данные, которые небходимо ввести',
-            'Update tuple': 'это что такое, а ?',
-            'Delete by field': 'нет блин по лесу',
+            'Add data': 'Выберете таблицу, в которую хотите добавить данные:',
+            'Search by field': 'Производится поиск...',
+            'Update tuple': 'Обновление',
+            'Delete by field': 'Удаляем',
             'Delete data': 'Введите номер записи, которую хотите удалить'}
 
     role = update.message.text
     update.message.reply_text(text[role])
     if role == 'Delete db':
         delete_db(update, context)
+        return ConversationHandler.END
     elif role == 'Print table':
         print_table(update, context)
+        return ConversationHandler.END
     elif role == 'Clear table':
-        clear_table(update, context)
+        keyboard_clear = [[KeyboardButton(text='Выбрать таблицу')],
+                          [KeyboardButton(text='Очистить полностью')]]
+        reply = ReplyKeyboardMarkup(keyboard_clear, one_time_keyboard=True)
+        update.message.reply_text(
+            f"Как вы хотите очистить таблицы?", reply_markup=reply)
     elif role == 'Add data':
-        add_data(update, context)
+        keyboard_tables = [[KeyboardButton(text='Таблица1')],
+                           [KeyboardButton(text='Таблица2')]]
+        reply = ReplyKeyboardMarkup(keyboard_tables, one_time_keyboard=True)
+        update.message.reply_text('Выбор:', reply_markup=reply)
     elif role == 'Search by field':
         search(update, context)
     elif role == 'Update tuple':
@@ -111,15 +157,15 @@ def choose_action(update: Update, context: CallbackContext):
         delete_by_field(update, context)
     elif role == 'Delete data':
         delete_data(update, context)
-    return 'choose_action'
+    return role
 
 
-# ======== actions ========
+# ======== delete db ========
 @decorator_error
 @analise
 def delete_db(update: Update, context: CallbackContext):
     bot_db.delete_db()
-    update.message.reply_text('Delete!')
+    update.message.reply_text('База данных успешно удалена!')
 
 
 @decorator_error
@@ -129,19 +175,45 @@ def print_table(update: Update, context: CallbackContext):
     update.message.reply_text('Print!')
 
 
+# ======== clear tables ========
 @decorator_error
 @analise
 def clear_table(update: Update, context: CallbackContext):
+    if update.message.text == 'Выбрать таблицу':
+        keyboard_tables = [[KeyboardButton(text='Таблица1')],
+                           [KeyboardButton(text='Таблица2')]]
+        reply = ReplyKeyboardMarkup(keyboard_tables, one_time_keyboard=True)
+        update.message.reply_text(
+            f"Выберете талицу:", reply_markup=reply)
+        return 'Select table'
+    elif update.message.text == 'Очистить полностью':
+        bot_db.clear()
+        update.message.reply_text('Таблицы успешно удалены!')
+    else:
+        update.message.reply_text('Некорректный ввод')
+    return ConversationHandler.END
+
+
+@decorator_error
+@analise
+def select_table(update: Update, context: CallbackContext):
     bot_db.clear()
-    update.message.reply_text('Clear!')
+    update.message.reply_text('Таблица успешно удалена!')
+    return ConversationHandler.END
 
 
 @decorator_error
 @analise
 def add_data(update: Update, context: CallbackContext):
-    bot_db.add_data()
-    update.message.reply_text('Add!!!!')
+    # if update.message.text == '':
+    update.message.reply_text('Введите данные в формате:')
+    return 'End add'
 
+
+def end_add(update:Update, context: CallbackContext):
+    bot_db.add_data()
+    update.message.reply_text('Добавлено')
+    return ConversationHandler.END
 
 @decorator_error
 @analise
@@ -153,7 +225,7 @@ def search(update: Update, context: CallbackContext):
 @decorator_error
 @analise
 def update_tuple(update: Update, context: CallbackContext):
-    bot_db.update_tuple()
+    # bot_db.update_tuple()
     update.message.reply_text('Update tuple!')
 
 
@@ -180,11 +252,28 @@ def main():
         entry_points=[CommandHandler('start', start)],
 
         states={
-            'choose_action': [MessageHandler(Filters.text, choose_action)],
-            '': ''},
+            'login': [MessageHandler(Filters.text, login)],
+            'passwd': [MessageHandler(Filters.text, passwd)]},
         fallbacks=[MessageHandler(Filters.text, error)]
     ))
 
+    dispatcher.add_handler(ConversationHandler(
+        entry_points=[CommandHandler('choose_actions', choose_action)],
+
+        states={
+                'choose_action_end': [MessageHandler(Filters.text, choose_action_end)],
+                'Print table': [MessageHandler(Filters.text, print_table)],
+                'Clear table': [MessageHandler(Filters.text, clear_table)],
+                'Select table': [MessageHandler(Filters.text, select_table)],
+                'Add data': [MessageHandler(Filters.text, add_data)],
+                'End add': [MessageHandler(Filters.text, end_add)],
+                'Search by field': [MessageHandler(Filters.text, search)],
+                'Update tuple': [MessageHandler(Filters.text, update_tuple)],
+                'Delete by field': [MessageHandler(Filters.text, delete_by_field)],
+                'Delete data': [MessageHandler(Filters.text, delete_data)],
+                },
+        fallbacks=[MessageHandler(Filters.text, error)]
+    ))
     dispatcher.add_error_handler(error)
 
     updater.start_polling()
