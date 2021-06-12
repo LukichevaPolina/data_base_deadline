@@ -18,7 +18,7 @@ from telegram import (Bot,
 
 from config import TOKEN
 
-from database import Database
+from database import Database, Deadline, Teacher, Group
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
@@ -223,7 +223,25 @@ def select_table(update: Update, context: CallbackContext):
 @analise
 def add_data(update: Update, context: CallbackContext):
     # if update.message.text == '':
-    update.message.reply_text('Введите данные в формате:')
+    update.message.reply_text('Введите название дисциплины:')
+    discipline = update.message.text
+    update.message.reply_text('Введите дедлайн (формат: ? ):')
+    deadline = update.message.text
+    update.message.reply_text('Введите задание:')
+    task = update.message.text
+    update.message.reply_text('Введите группу:')
+    group = update.message.text
+    add = bot_db.add_data(discipline, deadline, task, group)
+    if add == -1 or add == -3:
+        update.message.reply_text('Введите ФИО преподавателя:')
+        teacher = update.message.text
+        update.message.reply_text('Введите e-mail преподавателя:')
+        mail = update.message.text
+        bot_db.add_teacher(discipline, teacher, mail)
+    if add == -2 or add == -3:
+        update.message.reply_text('Введите e-mail группы:')
+        mail = update.message.text
+        bot_db.add_group(group, mail)
     return 'End add'
 
 
