@@ -49,16 +49,14 @@ class Database:
         return 1
 
     def delete_db(self):
-        self.deadlines_table.drop()
+        self.engine.drop()
 
     def select_from_db(self):
         return
 
     def clear(self, name_table: str, full_del: bool):
         if full_del:
-            for tab in self.tables.values():
-                print(type(tab))
-                tab.drop(self.engine)
+            self.metadata.drop_all(self.engine)
         else:
             self.tables[name_table].drop(self.engine)
 
