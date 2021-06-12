@@ -18,24 +18,28 @@ class Database:
         self.deadlines_table = Table('Deadlines', self.metadata,
                                 Column('Discipline', String),
                                 Column('Deadline', Date),
-                                Column('Task ID', Integer, primary_key=True, autoincrement=True))
+                                Column('Task ID', Integer, primary_key=True, autoincrement=True),
+                                Column('Task', String),
+                                Column('Group', String))
 
-        self.discipline_table = Table('Disciplines', self.metadata,
-                                 Column('Discipline', String, primary_key=True),
-                                 Column('Teacher', String))
+        self.teachers_table = Table('Teachers', self.metadata,
+                                 Column('Discipline', String, ForeignKey('Deadlines.Discipline')),
+                                 Column('Teacher', String, primary_key=True),
+                                 Column('Mail', String))
 
-        self.task_table = Table('Tasks', self.metadata,
-                           Column('ID', Integer, ForeignKey('Deadlines.Task ID')),
-                           Column('Task', String),
-                           Column('Group', String))
+        self.groups_table = Table('Groups', self.metadata,
+                              Column('ID', Integer, primary_key=True, autoincrement=True),
+                              Column('Group', String, ForeignKey('Deadlines.Task ID')),
+                              Column('Mail', String),
+                              Column('Number of tasks', String))
 
         self.tables = {'deadlines_table': self.deadlines_table,
-                  'discipline_table': self.discipline_table,
-                  'task_table': self.task_table}
+                        'teachers_table': self.teachers_table,
+                        'groups_table': self.groups_table}
         self.metadata.create_all(self.engine)
 
     def get_tables(self):
-        return ['deadline_table', 'discription_table', 'task_table']
+        return ['deadline_table', 'teachers_table', 'groups_table']
 
     def create_db(self, login, password, name):
         engine = create_engine('postgresql://{}:{}@localhost/{}'.format(login, password, name, echo=True))
@@ -67,8 +71,10 @@ class Database:
     def update_tuple(self):
         return
 
-    def delete_by_field(self):
+    def delete_by_field(self, name_table: str):
         return
 
-    def delete_data(self):
+    def delete_data(self, ):
+        for table in self.tables.values():
+            for fields in self.tables
         return
