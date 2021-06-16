@@ -16,7 +16,7 @@ class Deadline(object):
     def __init__(self, discipline, deadline, task, group):
         self.discipline = discipline
         self.deadline = deadline
-        self.task_id = random.randint()
+        self.task_id = random.randint(0, 1000)
         self.task = task
         self.group = group
 
@@ -59,7 +59,7 @@ class Database:
         self.metadata = MetaData()
 
         self.deadlines_table = Table('Deadlines', self.metadata,
-                                     Column('Deadline', Date),
+                                     Column('Deadline', String),
                                      Column('Task ID', Integer, primary_key=True, autoincrement=True),
                                      Column('Task', String),
                                      Column('Discipline', ForeignKey('Teachers.Discipline')),
@@ -126,24 +126,14 @@ class Database:
         else:
             self.tables[name_table].drop(self.engine)
 
-    def add_data(self, discipline: str, deadline, task: str, group: str):
+    def add_deadline(self, discipline: str, deadline, task: str, group: str):
         new_task = Deadline(discipline, deadline, task, group)
         self.session.add(new_task)
-        flag1, flag2 = 0, 0
-        if self.session.query(Deadline.discipline).filter(Deadline.discipline == discipline) == 0:
-            flag1 = 1
-        if self.session.query(Deadline.group).filter(Deadline.group == group) == 0:
-            flag2 = 1
-        if flag1 == 1 and flag2 == 1:
-            return -3
-        elif flag1 == 1:
-            return -1
-        elif flag2 == 1:
-            return -2
         self.session.commit()
         return 0
 
     def add_teacher(self, discipline, teacher, mail):
+        print(discipline, teacher, mail)
         new_teacher = Teacher(discipline, teacher, mail)
         self.session.add(new_teacher)
         self.session.commit()

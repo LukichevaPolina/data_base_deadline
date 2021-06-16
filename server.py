@@ -18,13 +18,14 @@ from telegram import (Bot,
 
 from config import TOKEN
 
-from database import Database
+from database import Database #, Teacher, Group
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 
 logger = logging.getLogger(__name__)
 array = []
+data_deadline, data_teacher, data_group = [], [], []
 
 global bot_db, log
 
@@ -149,8 +150,10 @@ def choose_action_end(update: Update, context: CallbackContext):
         update.message.reply_text(
             f"Как вы хотите очистить таблицы?", reply_markup=reply)
     elif role == 'Add data':
-        keyboard_tables = [[KeyboardButton(text='Таблица1')],
-                           [KeyboardButton(text='Таблица2')]]
+        tabl = bot_db.get_tables()
+        keyboard_tables = [[KeyboardButton(text=tabl[0])],
+                           [KeyboardButton(text=tabl[1])],
+                           [KeyboardButton(text=tabl[2])]]
         reply = ReplyKeyboardMarkup(keyboard_tables, one_time_keyboard=True)
         update.message.reply_text('Выбор:', reply_markup=reply)
     elif role == 'Search by field':
@@ -222,14 +225,86 @@ def select_table(update: Update, context: CallbackContext):
 @decorator_error
 @analise
 def add_data(update: Update, context: CallbackContext):
-    # if update.message.text == '':
-    update.message.reply_text('Введите данные в формате:')
+    if update.message.text == 'deadline_table':
+        update.message.reply_text('Введите дату в формате:')
+        return 'Enter deadline'
+    elif update.message.text == 'teachers_table':
+        update.message.reply_text('Введите название дисциплины:')
+        return 'Enter discipline_t'
+    elif update.message.text == 'groups_table':
+        update.message.reply_text('Введите название группы:')
+        return 'Enter group'
+
+
+# ======== add to deadline table ========
+@decorator_error
+@analise
+def enter_deadline(update: Update, context: CallbackContext):
+    data_deadline.append(update.message.text)
+    update.message.reply_text('Введите задание:')
+    return 'Enter task'
+
+
+@decorator_error
+@analise
+def enter_task(update: Update, context: CallbackContext):
+    data_deadline.append(update.message.text)
+    update.message.reply_text('Введите название дисциплины:')
+    return 'Enter discipline_d'
+
+
+@decorator_error
+@analise
+def enter_discipline_d(update: Update, context: CallbackContext):
+    data_deadline.append(update.message.text)
+    update.message.reply_text('Введите группу:')
     return 'End add'
 
 
-def end_add(update:Update, context: CallbackContext):
-    bot_db.add_data()
-    update.message.reply_text('Добавлено')
+# ======== add to teacher table ========
+@decorator_error
+@analise
+def enter_discipline_t(update: Update, context: CallbackContext):
+    data_teacher.append(update.message.text)
+    update.message.reply_text('Введите имя преподавателя:')
+    return 'Enter teacher'
+
+
+@decorator_error
+@analise
+def enter_teacher(update: Update, context: CallbackContext):
+    data_teacher.append(update.message.text)
+    update.message.reply_text('Введите email преподавателя:')
+    return 'End add'
+
+
+
+# ======== add to group table ========
+@decorator_error
+@analise
+def enter_group(update: Update, context: CallbackContext):
+    data_teacher.append(update.message.text)
+    update.message.reply_text('Введите e-mail группы:')
+    return 'End_add'
+
+
+def end_add(update: Update, context: CallbackContext):
+    try:
+        if len(data_deadline) != 0:
+            data_deadline.append(update.message.text)
+            bot_db.add_deadline(*data_deadline)
+            data_deadline.clear()
+        elif len(data_teacher) != 0:
+            data_teacher.append(update.message.text)
+            bot_db.add_teacher(*data_teacher)
+            data_teacher.clear()
+        else:
+            data_group.append(update.message.text)
+            bot_db.add_group(*data_group)
+            data_group.clear()
+        update.message.reply_text('Готово!')
+    except database.OperationalError:
+        update.message.reply_text('Ошибка! Не удалось добавить запись в таблицу')
     return ConversationHandler.END
 
 @decorator_error
@@ -285,6 +360,16 @@ def main():
                 'Clear table': [MessageHandler(Filters.text, clear_table)],
                 'Select table': [MessageHandler(Filters.text, select_table)],
                 'Add data': [MessageHandler(Filters.text, add_data)],
+
+                'Enter deadline': [MessageHandler(Filters.text, enter_deadline)],
+                'Enter task': [MessageHandler(Filters.text, enter_task)],
+                'Enter discipline_d': [MessageHandler(Filters.text, enter_discipline_d)],
+
+                'Enter discipline_t': [MessageHandler(Filters.text, enter_discipline_t)],
+                'Enter teacher': [MessageHandler(Filters.text, enter_teacher)],
+
+                'Enter group': [MessageHandler(Filters.text, enter_group)],
+
                 'End add': [MessageHandler(Filters.text, end_add)],
                 'Search by field': [MessageHandler(Filters.text, search)],
                 'Update tuple': [MessageHandler(Filters.text, update_tuple)],
